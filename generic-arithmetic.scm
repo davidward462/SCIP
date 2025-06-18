@@ -1,8 +1,13 @@
 ;; Generic arithmetic system
 ;; ch 2.5
 
+(define (type-tag datum)
+  (if (pair? datum)
+      (car datum)
+      (error "Bad tagged datum -- TYPE-TAG" datum)))
+
 (define (apply-generic op . args)
-  (let ((type-tags (map type-tags args)))
+  (let ((type-tags (map type-tag args)))
     (let ((proc (get op type-tags)))
       (if proc
 	  (apply proc (map contents args))
@@ -27,7 +32,7 @@
 ;; ordinary numbers
 
 ;; install in table
-(define (intall-scheme-number-pkg)
+(define (install-scheme-number-pkg)
   (define (tag x)
     (attach-tag 'scheme-number x))
   (put 'add '(scheme-number scheme-number)
