@@ -63,20 +63,30 @@
 	    ((eq? x 'reset-count) (set! count 0))
 	    (else (begin (set! count (+ 1 count))
 			 (f x)))))))
-
+;; Exercise 3.3
 ;; Simple bank account system
 (define (make-account-secure balance password)
+
   (define (withdraw amount)
     (if (>= balance amount)
 	(begin (set! balance (- balance amount))
 	       balance)
 	"Insufficient funds"))
+
   (define (deposit amount)
     (set! balance (+ balance amount))
     balance)
-  (define (dispatch m)
-    (cond ((eq? m 'withdraw) withdraw)
-	  ((eq? m 'deposit) deposit)
-	  (else (error "Unknown request -- MAKE-ACCOUNT"
-		       m))))
+
+  (define (incorrect-password x)
+    "Incorrect password")
+
+  (define (dispatch p m)
+    (let ((account-password password))
+      (if (eq? p account-password)
+	  (cond ((eq? m 'withdraw) withdraw)
+		((eq? m 'deposit) deposit)
+		(else
+		 (error "Unknown request -- MAKE-ACCOUNT" m)))
+	  incorrect-password)))
   dispatch)
+
