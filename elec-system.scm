@@ -1,5 +1,54 @@
 ;; From lecture 5B: Computational objects
 
+;; For testing only
+(define (f)
+  (display "f")
+  0)
+
+(define (g)
+  (display "g")
+  0)
+
+(define (h)
+  (display "h")
+  0)
+
+(define (i)
+  (display "i")
+  0)
+
+(define p (list f g h i))
+
+;; Call procedures from a list 'procs'
+(define (call-each procs)
+  (cond ((null? procs) 'done)
+	(else
+	 ((car procs))
+	 (call-each (cdr procs)))))
+
+(define (get-signal wire)
+  (wire 'get-signal))
+
+(define (set-signal! wire new-value)
+  ((wire 'set-signal!) new-value))
+
+(define (add-action! wire action-proc)
+  ((wire 'add-action!) action-proc))
+
+(define (after-delay delay action)
+  (add-to-agenda!
+   (+ delay (current-time the-agenda))
+   action
+   the-agenda))
+
+(define (propagate)
+  (cond ((empty-agenda? the-agenda)
+	 'done)
+	(else
+	 ((first-item the-agenda))
+	 (remove-first-item! the-agenda)
+	 (propagate))))
+
 ;; This is a "message accepting object"
 (define (make-wire)
   (let ((signal 0) (action-procs '()))
@@ -22,12 +71,12 @@
 	     (error "bad message" m))))
     dispatch))
 
-(define (a make-wire))
-(define (b make-wire))
-(define (c make-wire))
-(define (d make-wire))
-(define (d make-wire))
-(define (s make-wire))
+(define a (make-wire))
+(define b (make-wire))
+(define c (make-wire))
+(define d (make-wire))
+(define e (make-wire))
+(define s (make-wire))
 
 ;; Negation
 (define (logical-not s)
