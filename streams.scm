@@ -48,3 +48,15 @@
       (cons-stream
        low
        (enum-interval (+ 1 low) high))))
+
+
+;; Return the sum of the squares of the odd values in a tree.
+(define (sum-odd-squares tree)
+  (accumulate
+   +
+   0
+   (map
+    square
+    (filter odd?
+	    (enum-tree tree)))))
+
