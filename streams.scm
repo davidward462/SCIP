@@ -60,3 +60,10 @@
     (filter odd?
 	    (enum-tree tree)))))
 
+(define (flatten stream-of-streams)
+  (accumulate append-streams
+	      the-empty-stream
+	      stream-of-streams))
+
+(define (flatmap f stream)
+  flatten (map f s))
