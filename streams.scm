@@ -83,3 +83,11 @@
 	(lambda (j) (list i j))
 	(enum-interval 1 (-1+ i))))
      (enum-interval 1 n)))))
+
+;; We can use collect instead of many maps and flatmaps.
+(define (prime-sum-pairs-collect n)
+  (collect
+   (list i j (+ i j))
+   ((i (enum-interval 1 n))
+    (j (enum-interval 1 (-1+ i))))
+   (prime? (+ i j))))
