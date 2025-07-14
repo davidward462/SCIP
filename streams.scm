@@ -67,3 +67,19 @@
 
 (define (flatmap f stream)
   flatten (map f s))
+
+(define (prime-sum-pairs n)
+  (map
+   (lambda (p)
+     (list (car p)
+	   (cadr p)
+	   (+ (car p) (cadr p))))
+   (filter
+    (lambda (p)
+      (prime? (+ (car p) (cadr p))))
+    (flatmap
+     (lambda (i)
+       (map
+	(lambda (j) (list i j))
+	(enum-interval 1 (-1+ i))))
+     (enum-interval 1 n)))))
