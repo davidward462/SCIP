@@ -23,3 +23,14 @@
 (define (display-line x)
   (newline)
   (display x))
+
+(define (stream-enum-interval low high)
+  (if (> low high)
+      the-emtpy-stream
+      (cons-stream
+       low
+       (stream-enum-interval (+ low 1) high))))
+
+(define (show x)
+  (display-line x)
+  x)
