@@ -1,6 +1,55 @@
 ;; The Metacircular Evaluator
 ;; Ch 4.1
 
+;; Self-evaluating items like numbers and strings.
+(define (self-evaluating? exp)
+  (cond ((number? exp) true)
+	((string? exp) true)
+	(else false)))
+
+;; Variables are symbols.
+(define (variable? exp) (symbol? exp))
+
+;; Quotations have the form (quote <text of quotation>)
+(define (quoted? exp)
+  (tagged-list? exp 'quote))
+
+;; Recall that (cadr x) is the same as (car (cdr x)).
+(define (text-of-quotation exp) (cadr exp))
+
+;; The tagged-list? procedure is how we determine the type of the expression usually.
+(define (tagged-list? exp tag)
+  (if (pair? exp)
+      (eq? (car exp) tag)
+      false))
+
+;; Assignments have the form (set! <var> <value>).
+(define (assignment? exp)
+  (tagged-list? exp 'set!))
+
+(define (assignment-variable exp) (cadr exp))
+
+(define (assignment-value exp) (caddr exp))
+
+;; Definitions have the form (define <var> <value>) or (define (<var> <param 1> ... < param n>) <body>).
+;; Recall that 'define' for a procedure is the same as defining a variable as a lambda expression:
+;; (define <var> (lambda (<param 1> ... <param n>) <body>))
+(define (definition? exp)
+  (tagged-list? exp 'define))
+
+(define (definition-variable exp)
+  (if (symbol? (cadr exp))
+      (cadr exp)
+      (caadr exp)))
+
+(define (definition-value exp)
+  (if (symbol? (cadr exp))
+      (caddr exp)
+      (make-lambda (cdadr exp) ;; formal parameters
+		   (cddr exp)))) ;; body
+	       
+
+
 ;; Procedure Arguments
 (define (list-of-values exps env)
   (if (no-operands? exps)
@@ -28,7 +77,7 @@
 
 ;; Assignment
 ;; Install the value and variable in the designated environment.
-;; The choice of returning 'ok' is arbitrary.
+;; The choice of returning 'ok' is arbitrary, and implementation-dependant.
 (define (eval-assignment exp env)
   (set-variable-value! (assignment-variable exp)
 		       (eval (assignment-value exp) env)
