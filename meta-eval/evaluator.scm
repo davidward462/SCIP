@@ -48,7 +48,28 @@
       (make-lambda (cdadr exp) ;; formal parameters
 		   (cddr exp)))) ;; body
 	       
+;; Lambda expressions are in the form (lambda (<param 1> ... <param n>) <body>).
+(define (lambda? exp)
+  (tagged-list? exp 'lambda))
 
+(define (lambda-parameters exp) (cadr exp))
+
+(define (lambda-body exp) (cddr exp))
+
+(define (make-lambda parameters body)
+  (cons 'lambda (cons parameters body)))
+
+;; Conditionals are in the form (if (<predicate>) <consequent> <alternative>), where the alternative is optional.
+(define (if? exp) (tagged-list? exp 'if))
+
+(define (if-predicate exp) (cadr exp))
+
+(define (if-consequent exp) (caddr exp))
+
+(define (if-alternative exp)
+  (if (not (null? (cdddr exp)))
+      (cadddr exp)
+      'false))
 
 ;; Procedure Arguments
 (define (list-of-values exps env)
@@ -104,7 +125,7 @@
 	((definition? exp) (eval-definition exp env))
 	((if? exp) (eval-if exp env))
 	((lambda? exp)
-	 (make-procedure (lambda-params exp)
+	 (make-procedure (lambda-parameters exp)
 			 (lambda-body exp)
 			 env))
 	((begin? exp)
