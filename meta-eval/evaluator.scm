@@ -117,6 +117,39 @@
       (cons (eval (first-operand exps) env)
 	    (list-of-values (rest-operands exps) env))))
 
+;; Derived expressions
+;; A 'cond' expression is just a certain arragement of an 'if' expression. Therefore the 'cond' is a derived expression.
+;; We can handle it and convert it to an 'if' expression.
+(define  (cond? exp) (tagged-list? exp 'cond))
+
+;; The clauses are everything after the 'cond' tag
+(define (cond-clauses exp) (cdr exp))
+
+(define (cond-else-clause? clause)
+  (eq? (cond-predicate clause) 'else))
+
+;; A clause has a predicate (the thing which can be true or false) and an action.
+(define (cond-predicate clause) (car clause))
+
+(define (cond-actions clause) (cdr clause))
+
+;; We convert the 'cond' to an 'if' by expanding the clauses in the appropriate way.
+(define (cond->if exp)
+  (expand-clauses (cond-clauses exp)))
+
+(define (expand-clauses clauses)
+  (if (null? clauses)
+      'false           ; in this case there is no 'else' clause.
+      (let ((first (car clauses))
+	    (rest (cdr clauses)))
+	(if (cond-else-clause? first)       ; if the 'else' clause is the first one 
+	    (if (null? rest)                      ; if there is not any other clause
+		(sequence->exp (cond-actions first))
+		(error "ELSE clause isn't last -- COND->IF" clauses))
+	    (make-if (cond-predicate first) ; the else clause is not the first one
+		     (sequence->exp (cond-actions first))
+		     (expand-clauses rest))))))
+		   
 ;; Conditionals
 ;; 'if-predicate' is evaluated in the lanaguage we are implementing (which is a subset of Scheme) and so
 ;; it has a value in that language.
