@@ -137,6 +137,7 @@
 (define (cond->if exp)
   (expand-clauses (cond-clauses exp)))
 
+;; This changes a 'cond' expression into a nested set of 'if' expressions, which will the be evaluated.
 (define (expand-clauses clauses)
   (if (null? clauses)
       'false           ; in this case there is no 'else' clause.
@@ -202,7 +203,7 @@
 			 env))
 	((begin? exp)
 	 (eval-sequence (begin-actions exp) env))
-	((cond? exp) (eval (cond->if exp) env))
+	((cond? exp) (eval (cond->if exp) env))     ; convert the 'cond' into 'if' expressions, and then evaluate.
 	((application? exp)
 	 (apply (eval (operator exp) env)
 		(list-of-values (operands exp) env)))
