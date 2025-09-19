@@ -190,6 +190,97 @@
 (define (procedure-environment p)
   (cadddr p))
 
+;; Environments
+
+;; The enclosing environment is the next one in the list.
+(define (enclosing-environment env)
+  (cdr env))
+
+(define (first-frame env)
+  (car env))
+
+(define the-empty-environment '())
+
+;; Each frame of an environment is a pair of lists: the variables and their values.
+(define (make-frame variables values)
+  (cons variables values))
+
+(define (frame-variables frame)
+  (car frame))
+
+(define (frame-values frame)
+  (cdr frame))
+
+;; Add a new variable and value to the front of the frame.
+(define (add-binding-to-frame! var val frame)
+  (set-car! frame (cons var (car frame)))
+  (set-cdr! frame (cons val (cdr frame))))
+
+;; Extend the environment with a new frame which consists of the variable and
+;; values that we pass in. It will be a sub-environment of the base environment.
+(define (extend-environment vars vals base-env)
+  (if (= (length vars) (length vals))
+      (cons (make-frame vars vals) base-env)
+      ;; if the lengths are not equal
+      (if (< (length vars) (length vals))
+	  (error "Too many arguments supplied" vars vals)
+	  (error "Too few arguments supplied" vars vals))))
+
+;; Lookup a variable name in an environment to find the value.
+(define (lookup-variable-value var env)
+  (define (env-loop env)
+    (define (scan vars vals)
+      (cond ((null? vars)
+	     ;; If we didn't find the variable, go to the enclosing environment.
+	     (env-loop (enclosing-environment env)))
+	    ((eq? var (car vars))
+	     (car vals)) ;; if we match the variable, return the value.
+	    ;; Continue searching the current frame.
+	    (else (scan (cdr vars) (cdr vals)))))
+    (if (eq? env the-empty-environment)
+	;; If the environment is empty, the variable is unbound.
+	(error "Unbound variable" var)
+	;; else, check the next frame in the list
+	(let ((frame (first-frame env)))
+	  (scan (frame-variables frame)
+		(frame-values frame)))))
+  (env-loop env))
+
+
+;; To set a variable, we scan for the variable, like in lookup-variable-value.
+;; If we find it, we set the value to the one provided. If we don't find it then
+;; it is unbound.
+(define (set-variable-value! var val env)
+  (define (env-loop env)
+    (define (scan vars vals)
+      (cond ((null? vars)
+	     (env-loop (enclosing-environment env)))
+	    ((eq? var (car vars))
+	     (set-car! vals val))
+	    (else (scan (cdr vars) (cdr vals)))))
+    (if (eq? env the-empty-environment)
+	(error "Unbound variable -- SET!" var)
+	(let ((frame (first-frame env)))
+	  (scan (frame-variables frame)
+		(frame-values frame)))))
+  (env-loop env))
+
+;; Define a varible.
+;; Check the first frame to see if the binding is there. If it's not, add it.
+;; Iterate through all frames.
+(define (define-variable var val env)
+  (let ((frame (first-frame env)))
+    (define (scan vars vals)
+      (cond ((null? vars)
+	     ;; if the binding of the variable doesn't exist in this frame, add it.
+	     (add-binding-to-frame! var val frame))
+	    ((eq? var (car vars))
+	     (set-car! vals val))
+	    (else (scan (cdr vars) (cdr vals)))))
+    (scan (frame-variables frame)
+	  (frame-values frame))))
+	    
+	     
 ;; EVALUATION
 
 ;; Conditionals
