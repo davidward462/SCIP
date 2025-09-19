@@ -150,7 +150,48 @@
 	    (make-if (cond-predicate first) ; the else clause is not the first one
 		     (sequence->exp (cond-actions first))
 		     (expand-clauses rest))))))
-		   
+
+
+;; True is anything that is not false
+;; For example: (true? (= 1 1)) returns true.
+(define (true? x)
+  (not (eq? x false)))
+
+;; False is anything that is false.
+(define (false? x)
+  (eq? x false))
+
+;; temporary procedures
+(define (apply-primitive-procedure proc args)
+  (proc args))
+
+(define (primitive-procedure? proc)
+  false)
+
+;; Compound procedures
+
+;; Construct a procedure out of params, body, and environment.
+;; The first element is the tag.
+(define (make-procedure parameters body env)
+  (list 'procedure parameters body env))
+
+(define (compound-procedure? p)
+  (tagged-list? p 'procedure))
+
+;; Params is the second element.
+(define (procedure-parameters p)
+  (cadr p))
+
+;; Body is the third element.
+(define (procedure-body p)
+  (caddr p))
+
+;; Environment is the fourth element.
+(define (procedure-environment p)
+  (cadddr p))
+
+;; EVALUATION
+
 ;; Conditionals
 ;; 'if-predicate' is evaluated in the lanaguage we are implementing (which is a subset of Scheme) and so
 ;; it has a value in that language.
