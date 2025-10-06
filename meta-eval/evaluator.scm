@@ -360,3 +360,16 @@
 	 (error "Unknown procedure type -- APPLY" procedure))))
 
 
+(define (setup-environment)
+  ;; create the initial env extended from the empty one.
+  (let ((initial-env
+	 (extend-environment (primitive-procedure-names)
+			     (primitive-procedure-objects)
+			     the-empty-environment)))
+    (define-variable! 'true true initial-env)
+    (define-variable! 'false false initial-env)
+    initial-env))
+
+
+;; Primitive procedres.
+;; These are connected to the real ones in Lisp.
