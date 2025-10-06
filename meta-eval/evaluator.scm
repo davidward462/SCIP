@@ -9,7 +9,6 @@
 
 ;; Variables are symbols.
 (define (variable? exp) (symbol? exp))
-
 ;; Quotations have the form (quote <text of quotation>)
 (define (quoted? exp)
   (tagged-list? exp 'quote))
@@ -268,7 +267,7 @@
 ;; Define a varible.
 ;; Check the first frame to see if the binding is there. If it's not, add it.
 ;; Iterate through all frames.
-(define (define-variable var val env)
+(define (define-variable! var val env)
   (let ((frame (first-frame env)))
     (define (scan vars vals)
       (cond ((null? vars)
@@ -324,7 +323,7 @@
 ;; Note that to add new types of expressions to this language, we would need to directly edit the 'eval' procedure below.
 (define (eval exp env)
   (cond ((self-evaluating? exp) exp)
-	((variable? exp) (lookup-var-value exp env))
+	((variable? exp) (lookup-variable-value exp env))
 	((quoted? exp) (text-of-quotation exp))
 	((assignment? exp) (eval-assignment exp env))
 	((definition? exp) (eval-definition exp env))
@@ -383,13 +382,13 @@
 (define (primitive-implementation proc) (cadr proc))
 
 ;; The list of actual primitive procedures.
-(define (primitive-procedures
+(define primitive-procedures
 	 (list (list 'car car)
 	       (list 'cdr cdr)
 	       (list 'cons cons)
 	       (list 'null? null?)
-	       ;; we can add more here
-	       )))
+	       (list 'list list)
+	       (list 'append append)))
 
 (define (primitive-procedure-names)
   (map car
@@ -403,3 +402,38 @@
 (define (apply-primitive-procedure proc args)
   (apply-in-underlying-scheme
    (primitive-implementation proc) args))
+
+;; Driver loop
+
+(define input-prompt ";;; M-Eval input:")
+(define output-prompt ";;; M-Eval value:")
+
+(define (driver-loop)
+  (prompt-for-input input-prompt)
+  (let ((input (read)))
+    (let ((output (eval input the-global-environment)))
+      (announce-output output-prompt)
+      (user-print output)))
+  (driver-loop))
+
+(define (prompt-for-input string)
+  (newline) (newline) (display string) (newline))
+
+(define (announce-output string)
+  (newline) (display string) (newline))
+
+;; Special procedure to avoid printing the environment as part of a compound procedure
+(define (user-print object)
+  (if (compound-procedure? object)
+      (display (list 'compound-procedure
+		     (procedure-parameters object)
+		     (procedure-body object)
+		     '<procedure-env>))
+      (display object)))
+
+;; Run the evaluator
+
+(define the-global-environment (setup-environment))
+
+;; Then we would do
+;; => (driver-loop) 
