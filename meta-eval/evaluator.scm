@@ -342,6 +342,9 @@
 	(else
 	 (error "Unknown expression type -- EVAL" exp))))
 
+;; Save reference to the oringinal 'apply' procedure
+(define apply-in-underlying-scheme apply)
+
 ;; Apply
 ;; 'apply' takes a procedure and a list or arguments.
 ;; It handles primitive procedures and compound procedures differently, in the 'cond' statement.
@@ -373,3 +376,30 @@
 
 ;; Primitive procedres.
 ;; These are connected to the real ones in Lisp.
+
+(define (primitive-procedure? proc)
+  (tagged-list? proc 'primitive))
+
+(define (primitive-implementation proc) (cadr proc))
+
+;; The list of actual primitive procedures.
+(define (primitive-procedures
+	 (list (list 'car car)
+	       (list 'cdr cdr)
+	       (list 'cons cons)
+	       (list 'null? null?)
+	       ;; we can add more here
+	       )))
+
+(define (primitive-procedure-names)
+  (map car
+       primitive-procedures))
+
+(define (primitive-procedure-objects)
+  (map (lambda (proc) (list 'primitive (cadr proc)))
+       primitive-procedures))
+
+;; Apply primitive procedures by using the underlying Lisp system.
+(define (apply-primitive-procedure proc args)
+  (apply-in-underlying-scheme
+   (primitive-implementation proc) args))
