@@ -388,7 +388,8 @@
 	       (list 'cons cons)
 	       (list 'null? null?)
 	       (list 'list list)
-	       (list 'append append)))
+	       (list 'append append)
+	       (list 'list? list?)))
 
 (define (primitive-procedure-names)
   (map car
