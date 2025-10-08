@@ -1,3 +1,4 @@
+
 ;; The Metacircular Evaluator
 ;; Ch 4.1
 
@@ -389,7 +390,11 @@
 	       (list 'null? null?)
 	       (list 'list list)
 	       (list 'append append)
-	       (list 'list? list?)))
+	       (list 'list? list?)
+	       (list '+ +)
+	       (list '- -)
+	       (list '* *)
+	       (list '/ /)))
 
 (define (primitive-procedure-names)
   (map car
