@@ -379,7 +379,8 @@
 (define (analyze-definition exp)
   (let ((var (definition-variable exp))
 	(vproc (analyze (definition-value exp))))
-    (define-variable! var (vproc env env)
+    (lambda (env)
+      (define-variable! var (vproc env) env)
       'ok)))
 
 ;; For if statenemts, we extranc and analyze the predicate, consequent, and alternative at the time of analysis.
