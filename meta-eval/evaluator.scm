@@ -275,6 +275,11 @@
 	     
 ;; EVALUATION
 
+;; New eval which is more efficient.
+;; We separate syntactic analysis from the execution.
+(define (eval exp env)
+  ((analyze exp) env))
+
 ;; Conditionals
 ;; 'if-predicate' is evaluated in the lanaguage we are implementing (which is a subset of Scheme) and so
 ;; it has a value in that language.
@@ -310,29 +315,6 @@
     env)
   'ok)
 
-;; Eval
-;; 'eval' contains the rules used to evaluate the given expression 'exp' in the environment 'env'.
-;; The overall structure of the procedure is using a case analysis with 'cond'.
-;; Note that to add new types of expressions to this language, we would need to directly edit the 'eval' procedure below.
-(define (eval exp env)
-  (cond ((self-evaluating? exp) exp)
-	((variable? exp) (lookup-variable-value exp env))
-	((quoted? exp) (text-of-quotation exp))
-	((assignment? exp) (eval-assignment exp env))
-	((definition? exp) (eval-definition exp env))
-	((if? exp) (eval-if exp env))
-	((lambda? exp)
-	 (make-procedure (lambda-parameters exp)
-			 (lambda-body exp)
-			 env))
-	((begin? exp)
-	 (eval-sequence (begin-actions exp) env))
-	((cond? exp) (eval (cond->if exp) env))     ; convert the 'cond' into 'if' expressions, and then evaluate.
-	((application? exp)
-	 (apply (eval (operator exp) env)
-		(list-of-values (operands exp) env)))
-	(else
-	 (error "Unknown expression type -- EVAL" exp))))
 
 ;; Syntactic Analyzer
 ;; 'analyze' takes only the expression (not any environment) and returns a new 'execution procedure' which is the work that needs to be done to execute the expression that was just analyzed.
@@ -431,10 +413,7 @@
 
 
 
-;; New eval which is more efficient.
-;; We separate syntactic analysis from the execution.
-(define (eval exp env)
-  ((analyze exp) env))
+
 
 ;; Save reference to the oringinal 'apply' procedure
 (define apply-in-underlying-scheme apply)
