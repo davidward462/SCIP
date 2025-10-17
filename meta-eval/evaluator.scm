@@ -160,13 +160,6 @@
 (define (false? x)
   (eq? x false))
 
-;; temporary procedures
-(define (apply-primitive-procedure proc args)
-  (proc args))
-
-(define (primitive-procedure? proc)
-  false)
-
 ;; Compound procedures
 
 ;; Construct a procedure out of params, body, and environment.
