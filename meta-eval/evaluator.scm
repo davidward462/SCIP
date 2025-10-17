@@ -420,8 +420,8 @@
 	(aprocs (map analyze (operands exp))))
     (lambda (env)
       (execute-application (fproc env)
-			   (map (lambda (aproc (aproc env))
-				  aprocs))))))
+			   (map (lambda (aproc) (aproc env))
+				aprocs)))))
 
 (define (execute-application proc args)
   (cond ((primitive-procedure? proc)
@@ -435,6 +435,8 @@
 	 (error
 	  "Unknown procedure type -- EXECUTE-APPLICATION"
 	  proc))))
+
+
 
 ;; New eval which is more efficient.
 ;; We separate syntactic analysis from the execution.
