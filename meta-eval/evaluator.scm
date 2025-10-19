@@ -1,3 +1,4 @@
+
 ;; The Metacircular Evaluator
 ;; Ch 4.1
 
@@ -467,8 +468,17 @@
 	       (list '+ +)
 	       (list '- -)
 	       (list '* *)
-	       (list '/ /)))
+	       (list '/ /)
+	       (list 'abs abs)
+	       (list 'exp exp)
+	       (list 'modulo modulo)
+	       (list '= =)
+	       (list '> >)
+	       (list '< <)
+	       (list '<= <=)
+	       (list '>= >=)))
 
+	       
 (define (primitive-procedure-names)
   (map car
        primitive-procedures))
