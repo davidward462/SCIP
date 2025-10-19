@@ -2,6 +2,9 @@
 ;; The Metacircular Evaluator
 ;; Ch 4.1
 
+;; We still need to referende the actual Scheme 'apply' procedure at this point.
+(define apply-in-underlying-scheme apply)
+
 ;; Self-evaluating items like numbers and strings.
 (define (self-evaluating? exp)
   (cond ((number? exp) true)
@@ -272,7 +275,7 @@
 	    (else (scan (cdr vars) (cdr vals)))))
     (scan (frame-variables frame)
 	  (frame-values frame))))
-	    
+
 	     
 ;; EVALUATION
 
@@ -414,8 +417,6 @@
 
 
 ;; Apply procedure was here before
-
-
 
 
 (define (setup-environment)
