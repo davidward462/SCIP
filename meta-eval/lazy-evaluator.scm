@@ -335,7 +335,8 @@
 	((lambda? exp) (analyze-lambda exp))
 	((begin? exp) (analyze-sequence (begin-actions exp)))
 	((cond? exp) (analyze (cond->if exp)))
-	((application? exp) (analyze-application exp))
+	;; Edit here for lazy evaluation
+	;;((application? exp) (analyze-application exp))
 	(else
 	 (error "Unknown expression type -- ANALYZE" exp))))
 
