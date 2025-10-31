@@ -37,6 +37,8 @@
          (error "Unknown expression 
                  type: EVAL" exp))))
 
+;; Before we create our own mete-circular apply procedure, we must save a reference to the original Scheme 'apply'.
+(define apply-in-underlying-scheme apply)
 
 ;; Appy 
 (define (apply procedure arguments)
