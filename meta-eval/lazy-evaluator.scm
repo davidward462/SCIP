@@ -1,6 +1,8 @@
 
-;; The Metacircular Evaluator
-;; Ch 4.1
+;; The Lazy Metacircular Evaluator
+;; Ch 4.2
+
+;; This interpreter as been altered from evaluator.scm to use lazy evaluation on compound procedures.
 
 ;; We still need to referende the actual Scheme 'apply' procedure at this point.
 (define apply-in-underlying-scheme apply)
