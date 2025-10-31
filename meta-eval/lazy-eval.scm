@@ -2,43 +2,135 @@
 ;; The Lazy Metacircular Evaluator
 ;; Ch 4.2
 
-;; This interpreter as been altered from evaluator.scm to use lazy evaluation on compound procedures.
+;; Eval
+(define (eval exp env)
+  (cond ((self-evaluating? exp) 
+         exp)
+        ((variable? exp) 
+         (lookup-variable-value exp env))
+        ((quoted? exp) 
+         (text-of-quotation exp))
+        ((assignment? exp) 
+         (eval-assignment exp env))
+        ((definition? exp) 
+         (eval-definition exp env))
+        ((if? exp) 
+         (eval-if exp env))
+        ((lambda? exp)
+         (make-procedure 
+          (lambda-parameters exp)
+          (lambda-body exp)
+          env))
+        ((begin? exp)
+         (eval-sequence 
+          (begin-actions exp) 
+          env))
+        ((cond? exp) 
+         (eval (cond->if exp) env))
+        ((application? exp)
+         (apply (eval (operator exp) env)
+                (list-of-values 
+                 (operands exp) 
+                 env)))
+        (else
+         (error "Unknown expression 
+                 type: EVAL" exp))))
 
-;; We still need to referende the actual Scheme 'apply' procedure at this point.
+;; Before we create our own mete-circular apply procedure, we must save a reference to the original Scheme 'apply'.
 (define apply-in-underlying-scheme apply)
 
-;; Self-evaluating items like numbers and strings.
+;; Appy 
+(define (apply procedure arguments)
+  (cond ((primitive-procedure? procedure)
+         (apply-primitive-procedure 
+          procedure 
+          arguments))
+        ((compound-procedure? procedure)
+         (eval-sequence
+           (procedure-body procedure)
+           (extend-environment
+             (procedure-parameters 
+              procedure)
+             arguments
+             (procedure-environment 
+              procedure))))
+        (else
+         (error "Unknown procedure 
+                 type: APPLY" 
+                procedure))))
+
+
+;; Procedure arguments
+(define (list-of-values exps env)
+  (if (no-operands? exps)
+      '()
+      (cons (eval (first-operand exps) env)
+            (list-of-values 
+             (rest-operands exps) 
+             env))))
+
+
+;; Conditionals
+(define (eval-if exp env)
+  (if (true? (eval (if-predicate exp) env))
+      (eval (if-consequent exp) env)
+      (eval (if-alternative exp) env)))
+
+
+;; Sequences
+(define (eval-sequence exps env)
+  (cond ((last-exp? exps) 
+         (eval (first-exp exps) env))
+        (else 
+         (eval (first-exp exps) env)
+         (eval-sequence (rest-exps exps) 
+                        env))))
+
+;; Assignment
+(define (eval-assignment exp env)
+  (set-variable-value! 
+   (assignment-variable exp)
+   (eval (assignment-value exp) env)
+   env)
+  'ok)
+
+;; Definitions
+(define (eval-definition exp env)
+  (define-variable! 
+    (definition-variable exp)
+    (eval (definition-value exp) env)
+    env)
+  'ok)
+
+
+;; Representing expressions
+
 (define (self-evaluating? exp)
   (cond ((number? exp) true)
-	((string? exp) true)
-	(else false)))
+        ((string? exp) true)
+        (else false)))
 
-;; Variables are symbols.
 (define (variable? exp) (symbol? exp))
-;; Quotations have the form (quote <text of quotation>)
+
 (define (quoted? exp)
   (tagged-list? exp 'quote))
 
-;; Recall that (cadr x) is the same as (car (cdr x)).
-(define (text-of-quotation exp) (cadr exp))
+(define (text-of-quotation exp)
+  (cadr exp))
 
-;; The tagged-list? procedure is how we determine the type of the expression usually.
 (define (tagged-list? exp tag)
   (if (pair? exp)
       (eq? (car exp) tag)
       false))
 
-;; Assignments have the form (set! <var> <value>).
 (define (assignment? exp)
   (tagged-list? exp 'set!))
 
-(define (assignment-variable exp) (cadr exp))
+(define (assignment-variable exp) 
+  (cadr exp))
 
 (define (assignment-value exp) (caddr exp))
 
-;; Definitions have the form (define <var> <value>) or (define (<var> <param 1> ... < param n>) <body>).
-;; Recall that 'define' for a procedure is the same as defining a variable as a lambda expression:
-;; (define <var> (lambda (<param 1> ... <param n>) <body>))
 (define (definition? exp)
   (tagged-list? exp 'define))
 
@@ -50,11 +142,13 @@
 (define (definition-value exp)
   (if (symbol? (cadr exp))
       (caddr exp)
-      (make-lambda (cdadr exp) ;; formal parameters
-		   (cddr exp)))) ;; body
-	       
-;; Lambda expressions are in the form (lambda (<param 1> ... <param n>) <body>).
-(define (lambda? exp)
+      (make-lambda 
+       (cdadr exp)   ; formal parameters
+       (cddr exp)))) ; body
+
+
+;; Lambda expressions
+(define (lambda? exp) 
   (tagged-list? exp 'lambda))
 
 (define (lambda-parameters exp) (cadr exp))
@@ -64,7 +158,7 @@
 (define (make-lambda parameters body)
   (cons 'lambda (cons parameters body)))
 
-;; Conditionals are in the form (if (<predicate>) <consequent> <alternative>), where the alternative is optional.
+;; Conditionals
 (define (if? exp) (tagged-list? exp 'if))
 
 (define (if-predicate exp) (cadr exp))
@@ -76,13 +170,16 @@
       (cadddr exp)
       'false))
 
-;; This is used to transform 'cond' expressions to 'if' expressions.
-(define (make-if predicate consequent alternative)
-  (list 'if predicate consequent alternative))
+(define (make-if predicate 
+                 consequent 
+                 alternative)
+  (list 'if 
+        predicate 
+        consequent 
+        alternative))
 
-
-;; 'begin' combines several expressions into a single sequence of expressions in their given order.
-(define (begin? exp)
+;; Begin statements
+(define (begin? exp) 
   (tagged-list? exp 'begin))
 
 (define (begin-actions exp) (cdr exp))
@@ -93,15 +190,14 @@
 
 (define (rest-exps seq) (cdr seq))
 
-;; Transform a sequence into a single expression.
+
+;; Transform sequences into expressions
 (define (sequence->exp seq)
   (cond ((null? seq) seq)
-	((last-exp? seq) (first-exp seq))
-	(else (make-begin seq))))
+        ((last-exp? seq) (first-exp seq))
+        (else (make-begin seq))))
 
 (define (make-begin seq) (cons 'begin seq))
-
-;; Procedure application
 
 (define (application? exp) (pair? exp))
 
@@ -115,399 +211,221 @@
 
 (define (rest-operands ops) (cdr ops))
 
-;; Procedure Arguments
-(define (list-of-values exps env)
-  (if (no-operands? exps)
-      '()
-      (cons (eval (first-operand exps) env)
-	    (list-of-values (rest-operands exps) env))))
-
 ;; Derived expressions
-;; A 'cond' expression is just a certain arragement of an 'if' expression. Therefore the 'cond' is a derived expression.
-;; We can handle it and convert it to an 'if' expression.
-(define  (cond? exp) (tagged-list? exp 'cond))
+(define (cond? exp) 
+  (tagged-list? exp 'cond))
 
-;; The clauses are everything after the 'cond' tag
 (define (cond-clauses exp) (cdr exp))
 
 (define (cond-else-clause? clause)
   (eq? (cond-predicate clause) 'else))
 
-;; A clause has a predicate (the thing which can be true or false) and an action.
-(define (cond-predicate clause) (car clause))
+(define (cond-predicate clause) 
+  (car clause))
 
-(define (cond-actions clause) (cdr clause))
+(define (cond-actions clause) 
+  (cdr clause))
 
-;; We convert the 'cond' to an 'if' by expanding the clauses in the appropriate way.
 (define (cond->if exp)
   (expand-clauses (cond-clauses exp)))
 
-;; This changes a 'cond' expression into a nested set of 'if' expressions, which will the be evaluated.
 (define (expand-clauses clauses)
   (if (null? clauses)
-      'false           ; in this case there is no 'else' clause.
+      'false     ; no else clause
       (let ((first (car clauses))
-	    (rest (cdr clauses)))
-	(if (cond-else-clause? first)       ; if the 'else' clause is the first one 
-	    (if (null? rest)                      ; if there is not any other clause
-		(sequence->exp (cond-actions first))
-		(error "ELSE clause isn't last -- COND->IF" clauses))
-	    (make-if (cond-predicate first) ; the else clause is not the first one
-		     (sequence->exp (cond-actions first))
-		     (expand-clauses rest))))))
+            (rest (cdr clauses)))
+        (if (cond-else-clause? first)
+            (if (null? rest)
+                (sequence->exp 
+                 (cond-actions first))
+                (error "ELSE clause isn't 
+                        last: COND->IF"
+                       clauses))
+            (make-if (cond-predicate first)
+                     (sequence->exp 
+                      (cond-actions first))
+                     (expand-clauses 
+                      rest))))))
 
 
-;; True is anything that is not false
-;; For example: (true? (= 1 1)) returns true.
+;; Testing predicates
 (define (true? x)
   (not (eq? x false)))
 
-;; False is anything that is false.
 (define (false? x)
   (eq? x false))
 
-;; Compound procedures
+;; Representing procedures
 
-;; Construct a procedure out of params, body, and environment.
-;; The first element is the tag.
 (define (make-procedure parameters body env)
   (list 'procedure parameters body env))
 
 (define (compound-procedure? p)
   (tagged-list? p 'procedure))
 
-;; Params is the second element.
-(define (procedure-parameters p)
-  (cadr p))
+(define (procedure-parameters p) (cadr p))
 
-;; Body is the third element.
-(define (procedure-body p)
-  (caddr p))
+(define (procedure-body p) (caddr p))
 
-;; Environment is the fourth element.
-(define (procedure-environment p)
-  (cadddr p))
+(define (procedure-environment p) (cadddr p))
 
 ;; Environments
 
-;; The enclosing environment is the next one in the list.
-(define (enclosing-environment env)
-  (cdr env))
+(define (enclosing-environment env) (cdr env))
 
-(define (first-frame env)
-  (car env))
+(define (first-frame env) (car env))
 
 (define the-empty-environment '())
 
-;; Each frame of an environment is a pair of lists: the variables and their values.
+;; Environment frames
+
 (define (make-frame variables values)
   (cons variables values))
 
-(define (frame-variables frame)
-  (car frame))
+(define (frame-variables frame) (car frame))
 
-(define (frame-values frame)
-  (cdr frame))
+(define (frame-values frame) (cdr frame))
 
-;; Add a new variable and value to the front of the frame.
 (define (add-binding-to-frame! var val frame)
   (set-car! frame (cons var (car frame)))
   (set-cdr! frame (cons val (cdr frame))))
 
-;; Extend the environment with a new frame which consists of the variable and
-;; values that we pass in. It will be a sub-environment of the base environment.
+;; Extend environment
 (define (extend-environment vars vals base-env)
   (if (= (length vars) (length vals))
       (cons (make-frame vars vals) base-env)
-      ;; if the lengths are not equal
       (if (< (length vars) (length vals))
-	  (error "Too many arguments supplied" vars vals)
-	  (error "Too few arguments supplied" vars vals))))
+          (error "Too many arguments supplied" 
+                 vars 
+                 vals)
+          (error "Too few arguments supplied" 
+                 vars 
+                 vals))))
 
-;; Lookup a variable name in an environment to find the value.
+;; Lookup variable
 (define (lookup-variable-value var env)
   (define (env-loop env)
     (define (scan vars vals)
       (cond ((null? vars)
-	     ;; If we didn't find the variable, go to the enclosing environment.
-	     (env-loop (enclosing-environment env)))
-	    ((eq? var (car vars))
-	     (car vals)) ;; if we match the variable, return the value.
-	    ;; Continue searching the current frame.
-	    (else (scan (cdr vars) (cdr vals)))))
+             (env-loop 
+              (enclosing-environment env)))
+            ((eq? var (car vars))
+             (car vals))
+            (else (scan (cdr vars) 
+                        (cdr vals)))))
     (if (eq? env the-empty-environment)
-	;; If the environment is empty, the variable is unbound.
-	(error "Unbound variable" var)
-	;; else, check the next frame in the list
-	(let ((frame (first-frame env)))
-	  (scan (frame-variables frame)
-		(frame-values frame)))))
+        (error "Unbound variable" var)
+        (let ((frame (first-frame env)))
+          (scan (frame-variables frame)
+                (frame-values frame)))))
   (env-loop env))
 
 
-;; To set a variable, we scan for the variable, like in lookup-variable-value.
-;; If we find it, we set the value to the one provided. If we don't find it then
-;; it is unbound.
+;; Set variable values
 (define (set-variable-value! var val env)
   (define (env-loop env)
     (define (scan vars vals)
       (cond ((null? vars)
-	     (env-loop (enclosing-environment env)))
-	    ((eq? var (car vars))
-	     (set-car! vals val))
-	    (else (scan (cdr vars) (cdr vals)))))
+             (env-loop 
+              (enclosing-environment env)))
+            ((eq? var (car vars))
+             (set-car! vals val))
+            (else (scan (cdr vars) 
+                        (cdr vals)))))
     (if (eq? env the-empty-environment)
-	(error "Unbound variable -- SET!" var)
-	(let ((frame (first-frame env)))
-	  (scan (frame-variables frame)
-		(frame-values frame)))))
+        (error "Unbound variable: SET!" var)
+        (let ((frame (first-frame env)))
+          (scan (frame-variables frame)
+                (frame-values frame)))))
   (env-loop env))
 
-;; Define a varible.
-;; Check the first frame to see if the binding is there. If it's not, add it.
-;; Iterate through all frames.
+
+;; Define a variable
 (define (define-variable! var val env)
   (let ((frame (first-frame env)))
     (define (scan vars vals)
       (cond ((null? vars)
-	     ;; if the binding of the variable doesn't exist in this frame, add it.
-	     (add-binding-to-frame! var val frame))
-	    ((eq? var (car vars))
-	     (set-car! vals val))
-	    (else (scan (cdr vars) (cdr vals)))))
+             (add-binding-to-frame! 
+              var val frame))
+            ((eq? var (car vars))
+             (set-car! vals val))
+            (else (scan (cdr vars) 
+                        (cdr vals)))))
     (scan (frame-variables frame)
-	  (frame-values frame))))
+          (frame-values frame))))
 
-	     
-;; EVALUATION
-
-;; New eval which is more efficient.
-;; We separate syntactic analysis from the execution.
-(define (eval exp env)
-  ((analyze exp) env))
-
-;; Conditionals
-;; 'if-predicate' is evaluated in the lanaguage we are implementing (which is a subset of Scheme) and so
-;; it has a value in that language.
-;; 'true?' checks if the value in the interpreted langauge is what we consider to be true in our implementation
-;; language (which in this case is the full Scheme language).
-;; 'true?' is the interface here between the two languages.
-(define (eval-if exp env)
-  (if (true? (eval (if-predicate exp) env))
-      (eval (if-consequent exp) env)
-      (eval (if-alternative exp) env)))
-
-;; Sequences
-;; This is used by
-(define (eval-sequence exps env)
-  (cond ((last-exp? exps) (eval (first-exp exps) env))
-	(else (eval (first-exp exps) env)
-	      (eval-sequence (rest-exps exps) env))))
-
-;; Assignment
-;; Install the value and variable in the designated environment.
-;; The choice of returning 'ok' is arbitrary, and implementation-dependant.
-(define (eval-assignment exp env)
-  (set-variable-value! (assignment-variable exp)
-		       (eval (assignment-value exp) env)
-		       env)
-  'ok)
-
-
-;; TODO: define-variable! is not being recognized as a procedure I think.
-(define (eval-definition exp env)
-  (define-variable! (definition-variable exp)
-    (eval (definition-value exp) env)
-    env)
-  'ok)
-
-
-;; Syntactic Analyzer
-;; 'analyze' takes only the expression (not any environment) and returns a new 'execution procedure' which is the work that needs to be done to execute the expression that was just analyzed.
-(define (analyze exp)
-  (cond ((self-evaluating? exp)
-	 (analyze-self-evaluating exp))
-	((quoted? exp) (analyze-quoted exp))
-	((variable? exp) (analyze-variable exp))
-	((assignment? exp) (analyze-assignment exp))
-	((definition? exp) (analyze-definition exp))
-	((if? exp) (analyze-if exp))
-	((lambda? exp) (analyze-lambda exp))
-	((begin? exp) (analyze-sequence (begin-actions exp)))
-	((cond? exp) (analyze (cond->if exp)))
-	;; Edit here for lazy evaluation
-	;;((application? exp) (analyze-application exp))
-	(else
-	 (error "Unknown expression type -- ANALYZE" exp))))
-
-(define (analyze-self-evaluating exp)
-  (lambda (env) exp))
-
-(define (analyze-quoted exp)
-  (let ((qval (text-of-quotation exp)))
-    (lambda (env) qval)))
-
-;; The procedure returned here needs the environment, since we need the environment in order to look up a variable.
-(define (analyze-variable exp)
-  (lambda (env) (lookup-variable-value exp env)))
-
-(define (analyze-assignment exp)
-  (let ((var (assignment-variable exp))
-	(vproc (analyze (assignment-value exp))))
-    (lambda (env)
-      (set-variable-value! var (vproc env) env)
-      'ok)))
-
-(define (analyze-definition exp)
-  (let ((var (definition-variable exp))
-	(vproc (analyze (definition-value exp))))
-    (lambda (env)
-      (define-variable! var (vproc env) env)
-      'ok)))
-
-;; For if statenemts, we extranc and analyze the predicate, consequent, and alternative at the time of analysis.
-(define (analyze-if exp)
-  (let ((pproc (analyze (if-predicate exp)))
-	(cproc (analyze (if-consequent exp)))
-	(aproc (analyze (if-alternative exp))))
-    (lambda (env)
-      (if (true? (pproc env))
-	  (cproc env)
-	  (aproc env)))))
-
-;; For lambda statements, we only analyze the body once, and then construct the procedure.
-(define (analyze-lambda exp)
-  (let ((vars (lambda-parameters exp))
-	(bproc (analyze-sequence (lambda-body exp))))
-    (lambda (env) (make-procedure vars bproc env))))
-
-(define (analyze-sequence exps)
-  
-  ;; this procedure returns a procedure that calls the two arguments (which are procedures) sequentially.
-  (define (sequentially proc1 proc2)
-    (lambda (env) (proc1 env) (proc2 env)))
-
-  (define (loop first-proc rest-procs)
-    (if (null? rest-procs)
-	first-proc
-	(loop (sequentially first-proc (car rest-procs))
-	      (cdr rest-procs))))
-  (let ((procs (map analyze exps)))
-    (if (null? procs)
-	(error "Empty sequence -- ANALYZE"))
-    (loop (car procs) (cdr procs))))
-
-(define (analyze-application exp)
-  (let ((fproc (analyze (operator exp)))
-	(aprocs (map analyze (operands exp))))
-    (lambda (env)
-      (execute-application (fproc env)
-			   (map (lambda (aproc) (aproc env))
-				aprocs)))))
-
-(define (execute-application proc args)
-  (cond ((primitive-procedure? proc)
-	 (apply-primitive-procedure proc args))
-	((compound-procedure? proc)
-	 ((procedure-body proc)
-	  (extend-environment (procedure-parameters proc)
-			      args
-			      (procedure-environment proc))))
-	(else
-	 (error
-	  "Unknown procedure type -- EXECUTE-APPLICATION"
-	  proc))))
-
-
-;; Apply procedure was here before
-
-
-(define (setup-environment)
-  ;; create the initial env extended from the empty one.
-  (let ((initial-env
-	 (extend-environment (primitive-procedure-names)
-			     (primitive-procedure-objects)
-			     the-empty-environment)))
-    (define-variable! 'true true initial-env)
-    (define-variable! 'false false initial-env)
-    initial-env))
-
-
-;; Primitive procedres.
-;; These are connected to the real ones in Lisp.
-
+;; Primitive procedures
 (define (primitive-procedure? proc)
   (tagged-list? proc 'primitive))
 
-(define (primitive-implementation proc) (cadr proc))
+(define (primitive-implementation proc) 
+  (cadr proc))
 
-;; The list of actual primitive procedures.
 (define primitive-procedures
-	 (list (list 'car car)
-	       (list 'cdr cdr)
-	       (list 'cons cons)
-	       (list 'null? null?)
-	       (list 'list list)
-	       (list 'append append)
-	       (list 'list? list?)
-	       (list '+ +)
-	       (list '- -)
-	       (list '* *)
-	       (list '/ /)
-	       (list 'abs abs)
-	       (list 'exp exp)
-	       (list 'modulo modulo)
-	       (list '= =)
-	       (list '> >)
-	       (list '< <)
-	       (list '<= <=)
-	       (list '>= >=)))
+  (list (list 'car car)
+        (list 'cdr cdr)
+        (list 'cons cons)
+        (list 'null? null?))) ;; TODO: add more primitives here
 
-	       
 (define (primitive-procedure-names)
-  (map car
-       primitive-procedures))
+  (map car primitive-procedures))
 
 (define (primitive-procedure-objects)
-  (map (lambda (proc) (list 'primitive (cadr proc)))
+  (map (lambda (proc) 
+         (list 'primitive (cadr proc)))
        primitive-procedures))
 
-;; Apply primitive procedures by using the underlying Lisp system.
 (define (apply-primitive-procedure proc args)
   (apply-in-underlying-scheme
    (primitive-implementation proc) args))
 
-;; Driver loop
+;; Set up the environment
+(define (setup-environment)
+  (let ((initial-env
+         (extend-environment 
+          (primitive-procedure-names)
+          (primitive-procedure-objects)
+          the-empty-environment)))
+    (define-variable! 'true true initial-env)
+    (define-variable! 'false false initial-env)
+    initial-env))
 
-(define input-prompt ";;; M-Eval input:")
+;; Driver loop and display
+
+(define input-prompt  ";;; M-Eval input:")
 (define output-prompt ";;; M-Eval value:")
 
 (define (driver-loop)
   (prompt-for-input input-prompt)
   (let ((input (read)))
-    (let ((output (eval input the-global-environment)))
+    (let ((output 
+           (eval input 
+                 the-global-environment)))
       (announce-output output-prompt)
       (user-print output)))
   (driver-loop))
 
 (define (prompt-for-input string)
-  (newline) (newline) (display string) (newline))
+  (newline) (newline) 
+  (display string) (newline))
 
 (define (announce-output string)
   (newline) (display string) (newline))
 
-;; Special procedure to avoid printing the environment as part of a compound procedure
+;; For clean printing
 (define (user-print object)
   (if (compound-procedure? object)
-      (display (list 'compound-procedure
-		     (procedure-parameters object)
-		     (procedure-body object)
-		     '<procedure-env>))
+      (display 
+       (list 'compound-procedure
+             (procedure-parameters object)
+             (procedure-body object)
+             '<procedure-env>))
       (display object)))
 
-;; Run the evaluator
 
-(define the-global-environment (setup-environment))
+;; Create the initial global environment
+(define the-global-environment 
+  (setup-environment))
 
-;; Then we would do
-;; => (driver-loop) 
+;; To run the evaluator, just call:
+;; (driver-loop)
